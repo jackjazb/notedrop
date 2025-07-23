@@ -1,0 +1,22 @@
+{
+  "name": "notedrop",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "vitest"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "vite": "^7.0.4"
+  },
+  "dependencies": {
+    "@types/mithril": "^2.2.7",
+    "mithril": "^2.3.3",
+    "tone": "^15.1.22",
+    "vitest": "^3.2.4"
+  }
+}

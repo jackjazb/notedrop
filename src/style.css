@@ -1,0 +1,117 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap');
+
+
+:root {
+  color: rgba(255, 255, 255, 0.87);
+  background-color: black;
+  font-family: "IBM Plex Sans", sans-serif;
+
+  --black: #000000;
+  --grey-1: #0b0b0b;
+  --grey-2: #131313;
+  --grey-3: #1a1a1a;
+  --grey-4: #202020;
+  --grey-5: #262626;
+  --grey-6: #2c2c2c;
+  --grey-7: #333333;
+  --grey-8: #393939;
+  --grey-9: #404040;
+}
+
+body {
+  gap: 1rem;
+  height: 100%;
+  margin: 0;
+  /* overflow: hidden; */
+}
+
+canvas {
+  margin-bottom: auto;
+}
+
+pre {
+  position: absolute;
+  top: 0;
+  right: 1rem;
+  width: 10rem;
+}
+
+#panel {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  input[type=radio] {
+    display: none;
+  }
+
+  hr {
+    width: 80%;
+    margin: 0 auto;
+    background-color: var(--grey-2);
+  }
+}
+
+.btn {
+  color: white;
+  background-color: var(--grey-2);
+  font-weight: bold;
+  border: none;
+  border-radius: 0.1rem;
+  padding: 0.5rem 1rem;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    cursor: pointer;
+  }
+}
+
+& label:has(input[type=radio]:checked) {
+  background-color: var(--grey-9)
+}
+
+.btn.square {
+  padding: 0;
+  margin: 0;
+  width: 3rem;
+  height: 3rem;
+}
+
+dialog {
+  background-color: var(--grey-4);
+  color: white;
+  border: none;
+
+
+  h1 {
+    font-size: 1.1rem;
+  }
+
+  form {
+    button {
+      margin-left: auto;
+    }
+  }
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  label {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+  }
+
+  input {
+    grid-column: 3 / span 10;
+  }
+}
