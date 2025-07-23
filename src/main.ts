@@ -5,7 +5,6 @@ import type { Vec } from './vec';
 
 // Style import
 import { setUpControlPanel } from './panel';
-import { simulate } from './simulator';
 import './style.css';
 import { isTouch } from './utils';
 
@@ -76,10 +75,25 @@ function setUpEventListeners(state: State) {
   });
 }
 
+let now = performance.now();
+let delta = 0;
+let last = now;
+
+// Allowed ms per frame - see https://gafferongames.com/post/fix_your_timestep/
+const timeStep = 1000 / 240; //TODO at higher values (e.g. 3), bounces are missed?
+
 function loop(state: State) {
-  state.update();
+  now = performance.now();
+  delta = now - last;
+  last = now;
+  let acc = delta;
+
+  while (acc >= timeStep) {
+    state.update(timeStep);
+    acc -= timeStep;
+  }
+
   state.render();
-  state.updateDebugDisplay();
 
   // Call next loop
   requestAnimationFrame(() => loop(state));
@@ -92,5 +106,4 @@ initialState.loadFromLocal();
 setUpEventListeners(initialState);
 setUpControlPanel(initialState);
 
-simulate(initialState, 600);
-// loop(initialState);
+loop(initialState);

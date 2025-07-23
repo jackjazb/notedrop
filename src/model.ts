@@ -15,10 +15,6 @@ export type Circle = { centre: Vec; radius: number; stroke?: boolean; };
 
 export type SimulationParams = {
   /**
-   * px/s
-   */
-  ballTerminal: number;
-  /**
    * px/s^2
    */
   gravity: number;

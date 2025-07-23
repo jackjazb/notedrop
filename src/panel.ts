@@ -91,7 +91,7 @@ const InitModal: m.Component = {
     const text = isTouch() ?
       "Tap and drag to draw lines" :
       "Click and drag to draw lines";
-    return m(Modal, { title: 'Welcome to Note Drop!', closeLabel: 'Get started' }, [
+    return m(Modal, { title: 'Welcome to Notedrop!', closeLabel: 'Get started' }, [
       m("ul", [
         m("li", text),
         m("li", "Select tools and play with settings on the left")

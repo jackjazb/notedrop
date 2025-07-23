@@ -46,10 +46,10 @@ export class NoteSampler {
     }
   }
 
-  play(speed: number, gravity: number) {
+  play(speed: number) {
     // Doing this as a fraction of G seems to work well.
-    const min = gravity * 0.8;
-    const max = gravity * 1.2;
+    const min = 0;
+    const max = 2.0;
     const step = (max - min) / (this.scale.length - 1);
 
     // Clamp between min and max speed, then normalise 0 to max.

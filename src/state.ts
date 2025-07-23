@@ -1,13 +1,11 @@
 import { CompletedLine, type Line } from "./line";
-import { type Ball, type Dropper, type FrameTime, type SerialisedState, type SimulationParams, type Tool } from "./model";
+import { type Ball, type Dropper, type SerialisedState, type SimulationParams, type Tool } from "./model";
 import { Renderer } from "./renderer";
 import { NoteSampler } from "./sampler";
-import { jsonTable } from "./utils";
 import { Vec, vec } from "./vec";
 
 const DefaultSimulationSettings: SimulationParams = {
-  ballTerminal: 500,
-  gravity: 500,
+  gravity: 1,
   bounce: 0.9,
   dropperTimeout: 800
 };
@@ -30,21 +28,6 @@ export class State {
   droppers: Dropper[] = [];
   balls: Ball[] = [];
 
-  /**
-   * Frame time info.
-   */
-  frame: FrameTime = {
-    lastTime: 0,
-    delta: 0
-  };
-
-  // Debug printing util
-  debug: {
-    el: HTMLPreElement;
-    enabled: boolean;
-    content: Record<string, number>;
-  };
-
   undoStack: SerialisedState[] = [];
   shouldUndo = false;
 
@@ -52,36 +35,21 @@ export class State {
     this.renderer = new Renderer();
     this.sampler = new NoteSampler();
 
-    const dbg = document.createElement('pre');
-    document.body.appendChild(dbg);
-
-    this.debug = {
-      el: dbg,
-      enabled: false,
-      content: {
-        frames: 0
-      }
-    };
-
     this.droppers.push({
       pos: this.renderer.size.divide(2).minus(vec(0, this.renderer.size.y / 4)),
       timeout: 0
     });
   };
 
-  update() {
-    const now = performance.now();
-    this.frame.delta = now - this.frame.lastTime;
-    this.frame.lastTime = now;
-
-    this.debug.content.runtime = now / 1000;
-    this.debug.content.frames++;
-    if (this.debug.content.frames % 20 === 0) {
-      this.debug.content.fps = (1000 / this.frame.delta);
-    }
+  /**
+   * Advances the simulation by the specified number of ms.
+   * Unless otherwise stated, units generally deal in px and ms.
+   * E.g. vel is px/ms, acc is px/ms^2 etc.
+   */
+  update(timeStepMs: number) {
     // Add balls to timed out droppers
     for (const d of this.droppers) {
-      d.timeout -= this.frame.delta;
+      d.timeout -= timeStepMs;
       if (d.timeout > 0) {
         continue;
       }
@@ -91,33 +59,20 @@ export class State {
         vel: vec(0, 0),
         acc: vec(0, 0),
       });
-
-      // TEMP
-      if (this.balls.length >= 2) {
-        d.timeout = Infinity;
-      }
     }
 
-    const deltaSecs = this.frame.delta / 1000;
+    // Convert px/s to px/ms
+    const gravity = this.sim.gravity / 1000;
+
     for (const [i, b] of this.balls.entries()) {
       // Acceleration = gravity.
-      // For air resistance, do acc.minus(vec(0, b.vel.y / this.sim.ballTerminal).times(this.sim.gravity))  
-      // Effectively gravity + drag as a fraction of gravity.
-      // However, this does make the balls less bouncy...
-
-      b.acc = vec(0, this.sim.gravity);
+      b.acc = vec(0, gravity);
 
       // Add acceleration normalised for frame time to current velocity.
-      b.vel = b.vel.add(b.acc.times(deltaSecs));
+      b.vel = b.vel.add(b.acc.times(timeStepMs));
 
       // Calculate the position next frame by adding frame normalised velocity to position.
-      let nextPos = b.pos.add(b.vel.times(deltaSecs));
-
-      // Remove anything outside the canvas.
-      if (nextPos.isOutside(vec(0, 0), this.renderer.size)) {
-        this.balls.splice(i, 1);
-        continue;
-      }
+      let nextPos = b.pos.add(b.vel.times(timeStepMs));
 
       // Check each line for a bounce.
       for (const l of this.lines) {
@@ -136,6 +91,7 @@ export class State {
         else if (b.pos.isOutside(vec(l.from.x, -Infinity), vec(l.to.x, Infinity))) {
           continue;
         }
+
         // If the ball is going to cross the line next frame, we need to bounce.
         else if (b.pos.isAbove(l) !== nextPos.isAbove(l)) {
           b.vel = l.bounce(b.vel);
@@ -143,9 +99,15 @@ export class State {
           nextPos = b.pos;
         }
         if (bounced) {
-          this.sampler.play(b.vel.mag(), this.sim.gravity);
+          this.sampler.play(b.vel.mag());
           break;
         }
+      }
+
+      // Remove anything outside the canvas post bouncing.
+      if (nextPos.isOutside(vec(0, 0), this.renderer.size)) {
+        this.balls.splice(i, 1);
+        continue;
       }
       b.pos = nextPos;
     }
@@ -186,10 +148,6 @@ export class State {
         radius: 4,
       });
     }
-  }
-
-  updateDebugDisplay() {
-    this.debug.el.textContent = this.debug.enabled ? jsonTable(this.debug.content) : '';
   }
 
   addCurrentLine() {
