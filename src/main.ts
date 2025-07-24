@@ -1,31 +1,32 @@
-import { line } from './line';
-import { isTouchEvent, type TouchOrMouseHandler } from './model';
-import { State } from './state';
-import type { Vec } from './vec';
+import { line } from "./line";
+import { isTouchEvent, type TouchOrMouseHandler } from "./model";
+import { State } from "./state";
+import type { Vec } from "./vec";
 
 // Style import
-import { setUpControlPanel } from './panel';
-import './style.css';
-import { isTouch } from './utils';
-
+import { setUpControlPanel } from "./panel";
+import "./style.css";
+import { isTouch } from "./utils";
 
 /**
  * Sets up DOM events for manipulating the sim state.
  */
 function setUpEventListeners(state: State) {
-  const handleStart: TouchOrMouseHandler = async e => {
+  const handleStart: TouchOrMouseHandler = async (e) => {
     let clickPos: Vec;
     if (isTouchEvent(e)) {
-      clickPos = state.renderer.getRelativeMouse(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-    }
-    else {
+      clickPos = state.renderer.getRelativeMouse(
+        e.changedTouches[0].clientX,
+        e.changedTouches[0].clientY
+      );
+    } else {
       clickPos = state.renderer.getRelativeMouse(e.clientX, e.clientY);
     }
     switch (state.tool) {
-      case 'line':
+      case "line":
         state.currentLine = line(clickPos, clickPos);
         break;
-      case 'dropper':
+      case "dropper":
         state.addDropper(clickPos);
         break;
     }
@@ -35,24 +36,28 @@ function setUpEventListeners(state: State) {
     if (state.currentLine) {
       let clickPos: Vec;
       if (isTouchEvent(e)) {
-        clickPos = state.renderer.getRelativeMouse(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-      }
-      else {
+        clickPos = state.renderer.getRelativeMouse(
+          e.changedTouches[0].clientX,
+          e.changedTouches[0].clientY
+        );
+      } else {
         clickPos = state.renderer.getRelativeMouse(e.clientX, e.clientY);
       }
       state.currentLine.to = clickPos;
     }
-  };;
+  };
 
-  const handleEnd: TouchOrMouseHandler = async e => {
+  const handleEnd: TouchOrMouseHandler = async (e) => {
     if (!state.currentLine) {
       return;
     }
     let clickPos: Vec;
     if (isTouchEvent(e)) {
-      clickPos = state.renderer.getRelativeMouse(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-    }
-    else {
+      clickPos = state.renderer.getRelativeMouse(
+        e.changedTouches[0].clientX,
+        e.changedTouches[0].clientY
+      );
+    } else {
       clickPos = state.renderer.getRelativeMouse(e.clientX, e.clientY);
     }
     state.currentLine.to = clickPos;
@@ -70,9 +75,9 @@ function setUpEventListeners(state: State) {
     document.onmouseup = handleEnd;
   }
 
-  window.onresize = (() => {
+  window.onresize = () => {
     state.renderer.resize(window.innerWidth, window.innerHeight);
-  });
+  };
 }
 
 let now = performance.now();

@@ -4,7 +4,6 @@ import { Vec, vec } from "./vec";
 export type Line = {
   from: Vec;
   to: Vec;
-
 };
 
 export function line(from: Vec, to: Vec) {
@@ -29,8 +28,7 @@ export class CompletedLine implements Serialisable {
     if ((isVertical && yOutOfOrder) || xOutOfOrder) {
       this.to = from;
       this.from = to;
-    }
-    else {
+    } else {
       this.from = from;
       this.to = to;
     }
@@ -38,7 +36,7 @@ export class CompletedLine implements Serialisable {
     const vector = this.to.minus(this.from);
     this.m = vector.y / vector.x;
     // Rearranged, y - mx = c
-    this.c = this.from.y - (this.m * this.from.x);
+    this.c = this.from.y - this.m * this.from.x;
   }
 
   /**
@@ -47,26 +45,25 @@ export class CompletedLine implements Serialisable {
    */
   get normal(): Vec {
     const dir = this.to.minus(this.from);
-    return vec(
-      -dir.y,
-      dir.x
-    ).normalised();
+    return vec(-dir.y, dir.x).normalised();
   }
 
   /**
    * See https://stackoverflow.com/questions/573084/how-to-calculate-bounce-angle
    * We're basically reversing the component of velocity perpendicular to the wall.
    */
-  bounce(vel: Vec): Vec {
+  bounce(vel: Vec, multiplier: number): Vec {
     const u = this.normal.times(vel.dot(this.normal));
     const w = vel.minus(u);
-    return w.minus(u);
+    const newVel = w.minus(u);
+    const multiplied = vec(newVel.x, newVel.y * multiplier);
+    return multiplied;
   }
 
   save(): SerialisedLine {
     return {
       from: this.from.save(),
-      to: this.to.save()
+      to: this.to.save(),
     };
   }
 
@@ -77,4 +74,3 @@ export class CompletedLine implements Serialisable {
     });
   }
 }
-

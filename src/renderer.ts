@@ -1,9 +1,9 @@
 import type { Line } from "./line";
-import type { Circle } from './model';
-import { vec, type Vec } from './vec';
+import type { Circle } from "./model";
+import { vec, type Vec } from "./vec";
 
-export const BG = 'black';
-export const FG = 'white';
+export const BG = "black";
+export const FG = "white";
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
@@ -14,14 +14,14 @@ export class Renderer {
   }
 
   constructor() {
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     document.body.appendChild(canvas);
     this.canvas = canvas;
     this.canvas.focus();
 
-    const ctx = this.canvas.getContext('2d');
+    const ctx = this.canvas.getContext("2d");
     if (!ctx) {
-      throw new Error('ctx is undefined');
+      throw new Error("ctx is undefined");
     }
     this.ctx = ctx;
     this.canvas.style.backgroundColor = BG;
@@ -43,10 +43,16 @@ export class Renderer {
   drawCircle(circle: Circle) {
     this.ctx.beginPath();
 
-    this.ctx.arc(circle.centre.x, circle.centre.y, circle.radius, 0, Math.PI * 2, false);
+    this.ctx.arc(
+      circle.centre.x,
+      circle.centre.y,
+      circle.radius,
+      0,
+      Math.PI * 2,
+      false
+    );
     if (circle.stroke) {
       this.ctx.stroke();
-
     } else {
       this.ctx.fill();
     }
@@ -64,7 +70,6 @@ export class Renderer {
 
     this.ctx.moveTo(from.x, from.y);
     this.ctx.lineTo(to.x, to.y);
-
 
     this.ctx.stroke();
     this.ctx.closePath();

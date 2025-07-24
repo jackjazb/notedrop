@@ -39,7 +39,7 @@ export class Vec implements Serialisable {
     const x = Math.max(0, Math.min(this.x, max.x));
     const y = Math.max(0, Math.min(this.y, max.y));
     return new Vec(x, y);
-  };
+  }
 
   clone() {
     return new Vec(this.x, this.y);
@@ -82,7 +82,7 @@ export class Vec implements Serialisable {
   save(): SerialisedVector {
     return {
       x: this.x,
-      y: this.y
+      y: this.y,
     };
   }
 

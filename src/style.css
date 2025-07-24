@@ -1,5 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap');
-
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,100..700;1,100..700&display=swap");
 
 :root {
   color: rgba(255, 255, 255, 0.87);
@@ -44,7 +43,7 @@ pre {
   flex-direction: column;
   gap: 0.5rem;
 
-  input[type=radio] {
+  input[type="radio"] {
     display: none;
   }
 
@@ -55,6 +54,11 @@ pre {
   }
 }
 
+& label:has(input[type="radio"]:checked) {
+  background-color: var(--grey-9);
+}
+
+/* Button styles */
 .btn {
   color: white;
   background-color: var(--grey-2);
@@ -72,10 +76,6 @@ pre {
   }
 }
 
-& label:has(input[type=radio]:checked) {
-  background-color: var(--grey-9)
-}
-
 .btn.square {
   padding: 0;
   margin: 0;
@@ -83,35 +83,55 @@ pre {
   height: 3rem;
 }
 
+/* Shared modal style */
 dialog {
   background-color: var(--grey-4);
   color: white;
   border: none;
-
+  padding: 1rem;
 
   h1 {
     font-size: 1.1rem;
   }
 
   form {
+    margin-top: 1rem;
     button {
       margin-left: auto;
     }
   }
 }
 
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+.settings {
+  display: grid;
 
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
   label {
     display: flex;
     flex-direction: row;
     gap: 0.5rem;
   }
+}
 
-  input {
-    grid-column: 3 / span 10;
-  }
+/* A few fake Tailwind classes */
+.flex-row {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.flex-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ml-auto {
+  margin-left: auto;
+}
+
+.m-0 {
+  margin: 0;
 }

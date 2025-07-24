@@ -1,24 +1,40 @@
-import * as Tone from 'tone';
+import * as Tone from "tone";
 
-export type Instrument = 'marimba';
+export type Instrument = "marimba";
 
 const Octaves = [3, 4, 5];
 
-const Notes = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"] as const;
-type Note = typeof Notes[number];
+export const Notes = [
+  "C",
+  "C#",
+  "D",
+  "D#",
+  "E",
+  "F",
+  "F#",
+  "G",
+  "G#",
+  "A",
+  "A#",
+  "B",
+] as const;
+export type Note = (typeof Notes)[number];
 
-type ScaleType = "major" | "minor";
-
-const Intervals: Record<ScaleType, number[]> = {
+export const Scales = {
   major: [0, 2, 4, 5, 7, 9, 11],
-  minor: [0, 2, 3, 5, 7, 8, 11]
-};
+  minor: [0, 2, 3, 5, 7, 8, 11],
+  major_pentatonic: [0, 2, 4, 7, 9],
+  minor_pentatonic: [0, 3, 5, 7, 10],
+} as const;
+export type ScaleType = keyof typeof Scales;
 
 export class NoteSampler {
   private ready = false;
-  private instrument: Instrument = 'marimba';
+  private instrument: Instrument = "marimba";
   private sampler: Tone.Sampler;
 
+  private root: Note = "C";
+  private scaleType: ScaleType = "major";
   private scale: string[] = [];
 
   constructor() {
@@ -31,9 +47,11 @@ export class NoteSampler {
       },
       release: 0.2,
       baseUrl: `samples/${this.instrument}/`,
-      volume: -20,
-    }).connect(limiter).toDestination();
-    this.setScale("C", "major");
+      volume: -30,
+    })
+      .connect(limiter)
+      .toDestination();
+    this.updateScale();
   }
   /**
    * Initialise audio if it isn't already.
@@ -59,13 +77,23 @@ export class NoteSampler {
     this.sampler.triggerAttackRelease(this.scale[note], 1);
   }
 
-  setScale(root: Note, type: ScaleType) {
-    const rootIndex = Notes.indexOf(root);
+  setRootNote(root: Note) {
+    this.root = root;
+    this.updateScale();
+  }
+
+  setScaleType(type: ScaleType) {
+    this.scaleType = type;
+    this.updateScale();
+  }
+
+  private updateScale() {
+    const rootIndex = Notes.indexOf(this.root);
     if (rootIndex === -1) {
-      throw new Error(`invalid root: ${root}`);
+      throw new Error(`invalid root: ${this.root}`);
     }
 
-    let offsets = Intervals[type];
+    const offsets = Scales[this.scaleType];
     const scale: string[] = [];
     for (const offset of offsets) {
       let i = rootIndex + offset;
@@ -74,10 +102,6 @@ export class NoteSampler {
       }
       scale.push(Notes[i]);
     }
-    this.scale = Octaves.flatMap(o =>
-      scale.map(note => `${note}${o}`)
-    );
-
+    this.scale = Octaves.flatMap((o) => scale.map((note) => `${note}${o}`));
   }
 }
-

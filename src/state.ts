@@ -1,13 +1,19 @@
 import { CompletedLine, type Line } from "./line";
-import { type Ball, type Dropper, type SerialisedState, type SimulationParams, type Tool } from "./model";
+import {
+  type Ball,
+  type Dropper,
+  type SerialisedState,
+  type SimulationParams,
+  type Tool,
+} from "./model";
 import { Renderer } from "./renderer";
 import { NoteSampler } from "./sampler";
 import { Vec, vec } from "./vec";
 
-const DefaultSimulationSettings: SimulationParams = {
+export const DefaultSimulationSettings: SimulationParams = {
   gravity: 1,
-  bounce: 0.9,
-  dropperTimeout: 800
+  bounce: 1,
+  dropperTimeout: 800,
 };
 
 export class State {
@@ -17,11 +23,11 @@ export class State {
   /**
    * Settings for gravity etc.
    */
-  sim: SimulationParams = DefaultSimulationSettings;
+  sim: SimulationParams = { ...DefaultSimulationSettings };
 
   // Interaction.
   currentLine?: Line;
-  tool: Tool = 'line';
+  tool: Tool = "line";
 
   // Core simulation state.
   lines: CompletedLine[] = [];
@@ -37,9 +43,9 @@ export class State {
 
     this.droppers.push({
       pos: this.renderer.size.divide(2).minus(vec(0, this.renderer.size.y / 4)),
-      timeout: 0
+      timeout: 0,
     });
-  };
+  }
 
   /**
    * Advances the simulation by the specified number of ms.
@@ -79,22 +85,27 @@ export class State {
         let bounced = false;
         // Handle vertical lines.
         if (!isFinite(l.m)) {
-          const willCrossX = Math.sign(b.pos.x - l.from.x) !== Math.sign(nextPos.x - l.from.x);
+          const willCrossX =
+            Math.sign(b.pos.x - l.from.x) !== Math.sign(nextPos.x - l.from.x);
           const alignsY = b.pos.y > l.from.y && b.pos.y < l.to.y;
           if (willCrossX && alignsY) {
-            b.vel = l.bounce(b.vel);
+            b.vel = l.bounce(b.vel, this.sim.bounce);
             bounced = true;
             nextPos = b.pos;
           }
         }
         // Check the ball is in the rect formed by the lines x coordinates.
-        else if (b.pos.isOutside(vec(l.from.x, -Infinity), vec(l.to.x, Infinity))) {
+        else if (
+          b.pos.isOutside(vec(l.from.x, -Infinity), vec(l.to.x, Infinity))
+        ) {
           continue;
         }
 
         // If the ball is going to cross the line next frame, we need to bounce.
+        // TODO I think very steep lines do not every register as above the ball from frame to frame.
+        // May need a better solution.
         else if (b.pos.isAbove(l) !== nextPos.isAbove(l)) {
-          b.vel = l.bounce(b.vel);
+          b.vel = l.bounce(b.vel, this.sim.bounce);
           bounced = true;
           nextPos = b.pos;
         }
@@ -138,7 +149,7 @@ export class State {
       this.renderer.drawCircle({
         centre: d.pos,
         radius: 4,
-        stroke: true
+        stroke: true,
       });
     }
 
@@ -158,7 +169,7 @@ export class State {
 
     this.currentLine.to = this.currentLine.to.clamp(this.renderer.size);
 
-    let newLine = new CompletedLine(this.currentLine);
+    const newLine = new CompletedLine(this.currentLine);
     this.lines.push(newLine);
     this.currentLine = undefined;
   }
@@ -170,20 +181,24 @@ export class State {
 
   save(): SerialisedState {
     return {
-      droppers: this.droppers.map(d => ({ pos: d.pos, timeout: d.timeout })),
-      lines: structuredClone(this.lines)
+      droppers: this.droppers.map((d) => ({ pos: d.pos, timeout: d.timeout })),
+      lines: structuredClone(this.lines),
     };
   }
 
   load(from: SerialisedState) {
-    this.lines = from.lines.map(l => CompletedLine.load(l));
-    this.droppers = from.droppers.map(d => ({ pos: Vec.load(d.pos), timeout: d.timeout }));
+    this.lines = from.lines.map((l) => CompletedLine.load(l));
+    this.droppers = from.droppers.map((d) => ({
+      pos: Vec.load(d.pos),
+      timeout: d.timeout,
+    }));
   }
 
   undo() {
     this.shouldUndo = true;
   }
 
+  // TODO storing this in the URL would work better for sharing.
   saveToLocal() {
     const serialised = this.save();
     window.localStorage.setItem("notedrop", JSON.stringify(serialised));

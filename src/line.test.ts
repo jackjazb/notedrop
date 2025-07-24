@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CompletedLine, line } from "./line";
 import { vec } from "./vec";
 
-describe('Line', () => {
+describe("Line", () => {
   it("should sort the line's points in ascending order along the x axis", () => {
     expect(new CompletedLine(line(vec(10, 0), vec(5, 0))).from.x).toBe(5);
   });

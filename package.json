@@ -15,8 +15,10 @@
   },
   "dependencies": {
     "@types/mithril": "^2.2.7",
+    "eslint": "^9.31.0",
     "mithril": "^2.3.3",
     "tone": "^15.1.22",
+    "typescript-eslint": "^8.38.0",
     "vitest": "^3.2.4"
   }
 }

@@ -1,4 +1,4 @@
-import type { Vec } from './vec';
+import type { Vec } from "./vec";
 
 export type Dropper = {
   pos: Vec;
@@ -11,7 +11,7 @@ export type Ball = {
   acc: Vec;
 };
 
-export type Circle = { centre: Vec; radius: number; stroke?: boolean; };
+export type Circle = { centre: Vec; radius: number; stroke?: boolean };
 
 export type SimulationParams = {
   /**
@@ -39,8 +39,7 @@ export type FrameTime = {
   delta: number;
 };
 
-
-export type Tool = 'line' | 'dropper';
+export type Tool = "line" | "dropper";
 
 export type ControlPanel = {
   tools: Record<Tool, HTMLInputElement>;
@@ -48,9 +47,11 @@ export type ControlPanel = {
   settingsPanel: HTMLDialogElement;
 };
 
-export type TouchOrMouseHandler = (e: TouchEvent | MouseEvent) => Promise<void> | void;
+export type TouchOrMouseHandler = (
+  e: TouchEvent | MouseEvent
+) => Promise<void> | void;
 export function isTouchEvent(e: object): e is TouchEvent {
-  return 'touches' in e && 'changedTouches' in e;
+  return "touches" in e && "changedTouches" in e;
 }
 
 export type Serialisable = {
@@ -63,7 +64,7 @@ export type SerialisedVector = {
 };
 
 export type SerialisedLine = {
-  from: SerialisedVector,
+  from: SerialisedVector;
   to: SerialisedVector;
 };
 
