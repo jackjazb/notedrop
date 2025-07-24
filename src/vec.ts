@@ -1,4 +1,3 @@
-import type { CompletedLine } from "./line";
 import type { Serialisable, SerialisedVector } from "./model";
 
 export function vec(x: number, y: number): Vec {
@@ -61,20 +60,17 @@ export class Vec implements Serialisable {
     return new Vec(this.x / num, this.y / num);
   }
 
+  /**
+   * Returns the current vector to one with magnitude 1.
+   */
   normalised(): Vec {
     const mag = this.mag();
     return new Vec(this.x / mag, this.y / mag);
   }
 
-  isAbove(line: CompletedLine): boolean {
-    const y = line.m * this.x + line.c;
-    return this.y > y;
-  }
-
-  angle(): number {
-    return Math.atan2(this.y, this.x);
-  }
-
+  /**
+   * Returns the dot product with `v`.
+   */
   dot(v: Vec) {
     return this.x * v.x + this.y * v.y;
   }

@@ -11,17 +11,13 @@ export type Ball = {
   acc: Vec;
 };
 
-export type Circle = { centre: Vec; radius: number; stroke?: boolean };
+export type Circle = { centre: Vec; radius: number; stroke?: boolean; };
 
 export type SimulationParams = {
   /**
    * px/s^2
    */
   gravity: number;
-  /**
-   * The amount of the ball's velocity retained on bounce
-   */
-  bounce: number;
   /**
    * The rate at which droppers drop
    */
@@ -69,6 +65,7 @@ export type SerialisedLine = {
 };
 
 export type SerialisedState = {
+  size: SerialisedVector;
   lines: SerialisedLine[];
   droppers: {
     pos: SerialisedVector;

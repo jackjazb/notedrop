@@ -21,3 +21,12 @@ export function jsonTable(json: Record<string, number>) {
 export function isTouch() {
   return "ontouchstart" in window;
 }
+
+export async function setClipboard(text: string) {
+  const type = "text/plain";
+  const clipboardItemData = {
+    [type]: text,
+  };
+  const clipboardItem = new ClipboardItem(clipboardItemData);
+  await navigator.clipboard.write([clipboardItem]);
+}

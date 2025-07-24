@@ -1,7 +1,7 @@
 import { line } from "./line";
 import { isTouchEvent, type TouchOrMouseHandler } from "./model";
 import { State } from "./state";
-import type { Vec } from "./vec";
+import { type Vec } from "./vec";
 
 // Style import
 import { setUpControlPanel } from "./panel";
@@ -106,8 +106,8 @@ function loop(state: State) {
 
 const initialState = new State();
 
-// TODO remove when not needed any more.
-initialState.loadFromLocal();
+initialState.loadFromUrl();
+
 setUpEventListeners(initialState);
 setUpControlPanel(initialState);
 

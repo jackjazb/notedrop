@@ -12,7 +12,6 @@ export function line(from: Vec, to: Vec) {
 
 /**
  * A line of the form y = mx + c
- * Note that `from` is always before `to` on the x axis.
  */
 export class CompletedLine implements Serialisable {
   from: Vec;
@@ -21,17 +20,8 @@ export class CompletedLine implements Serialisable {
   c: number;
 
   constructor({ from, to }: Line) {
-    const isVertical = from.x === to.x;
-    const yOutOfOrder = from.y > to.y;
-    const xOutOfOrder = from.x > to.x;
-
-    if ((isVertical && yOutOfOrder) || xOutOfOrder) {
-      this.to = from;
-      this.from = to;
-    } else {
-      this.from = from;
-      this.to = to;
-    }
+    this.from = from;
+    this.to = to;
     // Note these will be infinite for vertical lines.
     const vector = this.to.minus(this.from);
     this.m = vector.y / vector.x;
@@ -52,12 +42,10 @@ export class CompletedLine implements Serialisable {
    * See https://stackoverflow.com/questions/573084/how-to-calculate-bounce-angle
    * We're basically reversing the component of velocity perpendicular to the wall.
    */
-  bounce(vel: Vec, multiplier: number): Vec {
+  bounce(vel: Vec): Vec {
     const u = this.normal.times(vel.dot(this.normal));
     const w = vel.minus(u);
-    const newVel = w.minus(u);
-    const multiplied = vec(newVel.x, newVel.y * multiplier);
-    return multiplied;
+    return w.minus(u);
   }
 
   save(): SerialisedLine {

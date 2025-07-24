@@ -1,15 +1,22 @@
-import m from "mithril";
+import m, { trust } from "mithril";
 import type { SimulationParams, Tool } from "./model";
+import {
+  Instruments,
+  Notes,
+  Scales,
+  type Instrument,
+  type Note,
+  type ScaleType,
+} from "./sampler";
 import { DefaultSimulationSettings, type State } from "./state";
+import { isTouch, setClipboard } from "./utils";
 
 // Raw asset imports
 import dropperIcon from "./assets/dropper.svg?raw";
 import lineIcon from "./assets/line.svg?raw";
+import resetIcon from "./assets/reset.svg?raw";
 import settingsIcons from "./assets/settings.svg?raw";
 import undoIcon from "./assets/undo.svg?raw";
-import { Notes, Scales, type Note, type ScaleType } from "./sampler";
-import { isTouch } from "./utils";
-
 /**
  * A reusable modal component.
  */
@@ -25,13 +32,15 @@ const Modal: m.Component<{
   },
   view: (vnode) => {
     const { title, closeLabel } = vnode.attrs;
-    return m("dialog", { autofocus: true }, [
+    return m(
+      "dialog",
+      { autofocus: true },
       title ? m("h1", title) : undefined,
       vnode.children,
       m("form", { method: "dialog" }, [
         m("button", { class: "btn" }, closeLabel ?? "OK"),
-      ]),
-    ]);
+      ])
+    );
   },
 };
 
@@ -46,15 +55,17 @@ const ToolPicker: m.Component<{ tool: Tool; state: State }> = {
       dropper: dropperIcon,
     };
 
-    return m("label", { class: "btn square" }, [
+    return m(
+      "label",
+      { class: "btn square" },
       m("input", {
         type: "radio",
         name: "tool",
         checked: state.tool === tool,
         onclick: () => (state.tool = tool),
       }),
-      m.trust(toolIcons[tool]),
-    ]);
+      m.trust(toolIcons[tool])
+    );
   },
 };
 
@@ -65,7 +76,9 @@ const ScalePicker: m.ClosureComponent<{ state: State }> = () => {
   return {
     view: (vnode) => {
       const { state } = vnode.attrs;
-      return m("span", { class: "flex-row" }, [
+      return m(
+        "span",
+        { class: "flex-row" },
         m(
           "select",
           {
@@ -84,9 +97,11 @@ const ScalePicker: m.ClosureComponent<{ state: State }> = () => {
                 (e.target as HTMLSelectElement).value as ScaleType
               ),
           },
-          Object.keys(Scales).map((n) => m("option", n))
-        ),
-      ]);
+          Object.keys(Scales).map((n) =>
+            m("option", { value: n }, n.replaceAll("_", " "))
+          )
+        )
+      );
     },
   };
 };
@@ -96,14 +111,14 @@ const ScalePicker: m.ClosureComponent<{ state: State }> = () => {
  */
 const SimSettingSlider: m.Component<{
   state: State;
-  simKey: keyof SimulationParams;
+  setting: keyof SimulationParams;
   label: string;
   min: number;
   max: number;
   step?: number;
 }> = {
   view: (vnode) => {
-    const { state, simKey: key, label, min, max, step } = vnode.attrs;
+    const { state, setting, label, min, max, step } = vnode.attrs;
     return [
       m("label", label),
       m("input", {
@@ -111,9 +126,9 @@ const SimSettingSlider: m.Component<{
         min,
         step,
         max,
-        value: state.sim[key],
+        value: state.sim[setting],
         oninput: (e: Event) => {
-          state.sim[key] = parseFloat(
+          state.sim[setting] = parseFloat(
             (e.currentTarget as HTMLInputElement).value
           );
         },
@@ -125,55 +140,105 @@ const SimSettingSlider: m.Component<{
 /**
  * The settings panel.
  */
-const SettingsModal: m.Component<{ state: State }> = {
-  view: (vnode) => {
-    const { state } = vnode.attrs;
-    return m(Modal, { open: false }, [
-      m("div", { class: "flex-col" }, [
-        m(
-          "h1",
-          { class: "flex-row m-0" },
-          "Options",
-          m(
-            "button",
-            {
-              class: "btn ml-auto",
-              onclick: () => (state.sim = { ...DefaultSimulationSettings }),
-            },
-            "reset"
-          )
-        ),
+const SettingsModal: m.ClosureComponent<{ state: State }> = () => {
+  let showCopyConfirm = false;
 
-        m("div", { class: "settings" }, [
-          m(SimSettingSlider, {
-            simKey: "gravity",
-            label: "Gravity",
-            state,
-            min: 0.01,
-            max: 3,
-            step: 0.01,
-          }),
-          m(SimSettingSlider, {
-            simKey: "bounce",
-            label: "Bounce",
-            state,
-            min: 0.01,
-            max: 2,
-            step: 0.01,
-          }),
-          m(SimSettingSlider, {
-            simKey: "dropperTimeout",
-            label: "Dropper delay",
-            state,
-            min: 100,
-            max: 2000,
-          }),
-          m("label", "Scale"),
-          m(ScalePicker, { state }),
-        ]),
-      ]),
-    ]);
-  },
+  return {
+    view: (vnode) => {
+      const { state } = vnode.attrs;
+
+      return m(
+        Modal,
+        { open: false },
+        m(
+          "div",
+          { class: "flex-col" },
+          m(
+            "h1",
+            { class: "flex-row m-0" },
+            "Options",
+            m(
+              "button",
+              {
+                class: "btn icon ml-auto",
+                onclick: () => (state.sim = { ...DefaultSimulationSettings }),
+              },
+              trust(resetIcon)
+            )
+          ),
+
+          m(
+            "div",
+            { class: "settings" },
+            m(SimSettingSlider, {
+              setting: "gravity",
+              label: "Gravity",
+              state,
+              min: 0.01,
+              max: 3,
+              step: 0.01,
+            }),
+
+            m(SimSettingSlider, {
+              setting: "dropperTimeout",
+              label: "Dropper delay",
+              state,
+              min: 50,
+              max: 1000,
+            }),
+            m("label", "Instrument"),
+            m(
+              "select",
+              {
+                onchange: (e: Event) =>
+                  (state.sampler.instrument = (e.target as HTMLSelectElement)
+                    .value as Instrument),
+              },
+              Instruments.map((n) =>
+                m("option", { value: n }, n.replaceAll("_", " "))
+              )
+            ),
+            m("label", "Scale"),
+            m(ScalePicker, { state })
+          ),
+          m(
+            "span",
+            { class: "flex-row mt-3" },
+            m(
+              "button",
+              {
+                class: "btn  ",
+                onclick: async () => {
+                  state.clear();
+                  window.history.pushState(null, "", "/");
+                },
+              },
+              "❌ Clear"
+            ),
+            m(
+              "button",
+              {
+                class: "btn ",
+                onclick: async () => {
+                  state.saveToLocal();
+                  await setClipboard(window.location.href);
+                  showCopyConfirm = true;
+                  console.log(showCopyConfirm);
+                  setTimeout(() => {
+                    showCopyConfirm = false;
+
+                    m.redraw();
+                  }, 3000);
+                },
+              },
+              "🎵 Share"
+            ),
+            showCopyConfirm ? m("span", "Copied!") : undefined
+          )
+        )
+      );
+    },
+  };
 };
 
 /**
@@ -190,7 +255,7 @@ const SettingsModalButton: m.Component<{ state: State }> = {
           class: "btn square",
           onclick: () => (modal.dom as HTMLDialogElement).showModal(),
         },
-        [m.trust(settingsIcons)]
+        m.trust(settingsIcons)
       ),
       modal,
     ];
@@ -209,15 +274,16 @@ const InitModal: m.Component = {
       Modal,
       {
         title: "Welcome to Notedrop!",
-        closeLabel: "Get started",
+        closeLabel: "🎵 Get started",
         open: true,
       },
-      [
-        m("ul", [
-          m("li", text),
-          m("li", "Select tools and play with settings on the left"),
-        ]),
-      ]
+
+      m(
+        "ul",
+        m("li", text),
+        m("li", "Select tools and undo in the left panel"),
+        m("li", "Share and more in the settings menu")
+      )
     );
   },
 };
@@ -232,12 +298,9 @@ const Panel: m.Component<{ state: State }> = {
       m(ToolPicker, { tool: "dropper", state }),
       m(
         "button",
-        { class: "btn square", onclick: () => state.saveToLocal() },
-        "save"
+        { class: "btn square", onclick: () => state.undo() },
+        m.trust(undoIcon)
       ),
-      m("button", { class: "btn square", onclick: () => state.undo() }, [
-        m.trust(undoIcon),
-      ]),
       m("hr"),
       m(SettingsModalButton, { state }),
       m(InitModal),

@@ -11,12 +11,14 @@ import { NoteSampler } from "./sampler";
 import { Vec, vec } from "./vec";
 
 export const DefaultSimulationSettings: SimulationParams = {
-  gravity: 1,
-  bounce: 1,
+  gravity: 1.5,
   dropperTimeout: 800,
 };
 
+const StateKey = "state";
+
 export class State {
+  // Video and sound.
   renderer: Renderer;
   sampler: NoteSampler;
 
@@ -40,7 +42,13 @@ export class State {
   constructor() {
     this.renderer = new Renderer();
     this.sampler = new NoteSampler();
+    this.clear();
+  }
 
+  clear() {
+    this.lines = [];
+    this.droppers = [];
+    this.balls = [];
     this.droppers.push({
       pos: this.renderer.size.divide(2).minus(vec(0, this.renderer.size.y / 4)),
       timeout: 0,
@@ -80,38 +88,30 @@ export class State {
       // Calculate the position next frame by adding frame normalised velocity to position.
       let nextPos = b.pos.add(b.vel.times(timeStepMs));
 
-      // Check each line for a bounce.
+      /*
+       Check each line for bounces with the current ball.
+       If the dot product of (from -> ball) and the line's normal is 0, the lines are perpendicular.
+       This means on each side of the line this product has a different sign,
+      */
       for (const l of this.lines) {
-        let bounced = false;
-        // Handle vertical lines.
-        if (!isFinite(l.m)) {
-          const willCrossX =
-            Math.sign(b.pos.x - l.from.x) !== Math.sign(nextPos.x - l.from.x);
-          const alignsY = b.pos.y > l.from.y && b.pos.y < l.to.y;
-          if (willCrossX && alignsY) {
-            b.vel = l.bounce(b.vel, this.sim.bounce);
-            bounced = true;
-            nextPos = b.pos;
-          }
-        }
-        // Check the ball is in the rect formed by the lines x coordinates.
-        else if (
-          b.pos.isOutside(vec(l.from.x, -Infinity), vec(l.to.x, Infinity))
-        ) {
-          continue;
-        }
+        /*
+         Is the ball in line with the segment of the line on show?
+         Get vectors from each end and see if their alignment mismatches.
+         Picture the triangle formed by the line's ends and the balls.
+         If both lines point the same way relative to the line's vector, the ball is misaligned.
+        */
+        const fromDot = b.pos.minus(l.from).dot(l.to.minus(l.from));
+        const toDot = b.pos.minus(l.to).dot(l.to.minus(l.from));
+        const withinLineSegment = Math.sign(fromDot) !== Math.sign(toDot);
 
-        // If the ball is going to cross the line next frame, we need to bounce.
-        // TODO I think very steep lines do not every register as above the ball from frame to frame.
-        // May need a better solution.
-        else if (b.pos.isAbove(l) !== nextPos.isAbove(l)) {
-          b.vel = l.bounce(b.vel, this.sim.bounce);
-          bounced = true;
-          nextPos = b.pos;
-        }
-        if (bounced) {
+        const thisDot = b.pos.minus(l.from).dot(l.normal);
+        const nextDot = nextPos.minus(l.from).dot(l.normal);
+        const crossesLine = Math.sign(thisDot) !== Math.sign(nextDot);
+
+        if (withinLineSegment && crossesLine) {
+          b.vel = l.bounce(b.vel);
+          nextPos = b.pos.add(b.vel.times(timeStepMs));
           this.sampler.play(b.vel.mag());
-          break;
         }
       }
 
@@ -122,6 +122,8 @@ export class State {
       }
       b.pos = nextPos;
     }
+
+    // We don't want to undo mid frame, so this defers it until the simulation has advanced.
     if (this.shouldUndo) {
       this.shouldUndo = false;
       const prev = this.undoStack.pop();
@@ -131,6 +133,7 @@ export class State {
       this.load(prev);
     }
   }
+
   /**
    * Renders the current state to the current canvas.
    */
@@ -161,6 +164,9 @@ export class State {
     }
   }
 
+  /**
+   * Stores the currently held line to the lines array, e.g. when a touch ends.
+   */
   addCurrentLine() {
     if (!this.currentLine) {
       return;
@@ -179,8 +185,10 @@ export class State {
     this.droppers.push({ pos, timeout: 0 });
   }
 
+  // TODO this needs to save settings too...
   save(): SerialisedState {
     return {
+      size: this.renderer.size.save(),
       droppers: this.droppers.map((d) => ({ pos: d.pos, timeout: d.timeout })),
       lines: structuredClone(this.lines),
     };
@@ -194,21 +202,50 @@ export class State {
     }));
   }
 
+  /**
+   * Queues an undo for the end of the frame.
+   */
   undo() {
     this.shouldUndo = true;
   }
 
-  // TODO storing this in the URL would work better for sharing.
+  /**
+   * Saves the current state to the URL for sharing.
+   */
   saveToLocal() {
     const serialised = this.save();
-    window.localStorage.setItem("notedrop", JSON.stringify(serialised));
+    const encoded = btoa(JSON.stringify(serialised));
+    const url = new URL(window.location.href);
+    url.searchParams.set(StateKey, encoded);
+    window.history.pushState(null, "", url.toString());
   }
 
-  loadFromLocal() {
-    const serialised = window.localStorage.getItem("notedrop");
-    if (!serialised) {
+  /**
+   * Loads a state from the URL if one is present.
+   */
+  async loadFromUrl() {
+    const url = new URL(window.location.href);
+    const encoded = url.searchParams.get(StateKey);
+    if (!encoded) {
       return;
     }
-    this.load(JSON.parse(serialised));
+
+    try {
+      const decoded = atob(encoded);
+      const parsed = JSON.parse(decoded) as SerialisedState;
+      const xOffset = (this.renderer.size.x - parsed.size.x) / 2;
+      for (const d of parsed.droppers) {
+        d.pos.x += xOffset;
+      }
+      for (const l of parsed.lines) {
+        l.from.x += xOffset;
+        l.to.x += xOffset;
+      }
+
+      this.load(parsed);
+    } catch {
+      // This could easily happen and we don't especially care - no handling.
+      return;
+    }
   }
 }

@@ -1,6 +1,7 @@
 import * as Tone from "tone";
 
-export type Instrument = "marimba";
+export const Instruments = ["marimba", "guitar"] as const;
+export type Instrument = (typeof Instruments)[number];
 
 const Octaves = [3, 4, 5];
 
@@ -23,13 +24,14 @@ export type Note = (typeof Notes)[number];
 export const Scales = {
   major: [0, 2, 4, 5, 7, 9, 11],
   minor: [0, 2, 3, 5, 7, 8, 11],
-  major_pentatonic: [0, 2, 4, 7, 9],
-  minor_pentatonic: [0, 3, 5, 7, 10],
+  pentatonic_major: [0, 2, 4, 7, 9],
+  pentatonic_minor: [0, 3, 5, 7, 10],
 } as const;
 export type ScaleType = keyof typeof Scales;
 
 export class NoteSampler {
   private ready = false;
+  // TODO update sampler on change
   private instrument: Instrument = "marimba";
   private sampler: Tone.Sampler;
 
@@ -38,18 +40,22 @@ export class NoteSampler {
   private scale: string[] = [];
 
   constructor() {
-    const limiter = new Tone.Limiter(-40).toDestination();
-
+    Tone.getContext().lookAhead = 0;
+    const limiter = new Tone.Limiter(-40);
+    const mono = new Tone.Mono();
     this.sampler = new Tone.Sampler({
       urls: {
+        C2: "c2.wav",
         C3: "c3.wav",
         C4: "c4.wav",
+        C5: "c5.wav",
       },
-      release: 0.2,
+      // release: 0.2,
       baseUrl: `samples/${this.instrument}/`,
-      volume: -30,
+      volume: -20,
     })
       .connect(limiter)
+      .connect(mono)
       .toDestination();
     this.updateScale();
   }

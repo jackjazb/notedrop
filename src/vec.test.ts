@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CompletedLine, line, type Line } from "./line";
-import { Vec, vec } from "./vec";
+import { vec } from "./vec";
 
 describe("Vec", () => {
   describe("mag", () => {
@@ -24,35 +23,5 @@ describe("Vec", () => {
     it("should return false if the vector is within the passed bounds", () => {
       expect(vec(10, 10).isOutside(vec(0, 0), vec(30, 30))).toBe(false);
     });
-  });
-
-  describe("isAbove", () => {
-    type Case = {
-      point: Vec;
-      line: Line;
-      expected: boolean;
-    };
-    it.each<Case>([
-      {
-        point: vec(10, 10),
-        line: line(vec(5, 0), vec(10, 0)),
-        expected: true,
-      },
-      {
-        point: vec(10, -10),
-        line: line(vec(5, 0), vec(10, 0)),
-        expected: false,
-      },
-      {
-        point: vec(10, -10),
-        line: line(vec(10, 0), vec(5, 0)), // Double checking out of order points.
-        expected: false,
-      },
-    ])(
-      "should return true if $point is above the line formed by $line",
-      ({ point, line, expected }) => {
-        expect(point.isAbove(new CompletedLine(line))).toEqual(expected);
-      }
-    );
   });
 });
