@@ -38,7 +38,7 @@ const Modal: m.Component<{
       title ? m("h1", title) : undefined,
       vnode.children,
       m("form", { method: "dialog" }, [
-        m("button", { class: "btn" }, closeLabel ?? "OK"),
+        m("button", { class: "btn" }, closeLabel ?? "Close"),
       ])
     );
   },
@@ -87,7 +87,15 @@ const ScalePicker: m.ClosureComponent<{ state: State }> = () => {
                 (e.target as HTMLSelectElement).value as Note
               ),
           },
-          Notes.map((n) => m("option", n))
+          Notes.map((n) =>
+            m(
+              "option",
+              {
+                selected: n === state.sampler.getRootNote(),
+              },
+              n
+            )
+          )
         ),
         m(
           "select",
@@ -98,7 +106,14 @@ const ScalePicker: m.ClosureComponent<{ state: State }> = () => {
               ),
           },
           Object.keys(Scales).map((n) =>
-            m("option", { value: n }, n.replaceAll("_", " "))
+            m(
+              "option",
+              {
+                selected: n === state.sampler.getScaleType(),
+                value: n,
+              },
+              n.replaceAll("_", " ")
+            )
           )
         )
       );
@@ -194,8 +209,12 @@ const SettingsModal: m.ClosureComponent<{ state: State }> = () => {
                   (state.sampler.instrument = (e.target as HTMLSelectElement)
                     .value as Instrument),
               },
-              Instruments.map((n) =>
-                m("option", { value: n }, n.replaceAll("_", " "))
+              Instruments.map((inst) =>
+                m(
+                  "option",
+                  { value: inst, selected: inst === state.sampler.instrument },
+                  inst.replaceAll("_", " ")
+                )
               )
             ),
             m("label", "Scale"),

@@ -185,21 +185,30 @@ export class State {
     this.droppers.push({ pos, timeout: 0 });
   }
 
-  // TODO this needs to save settings too...
   save(): SerialisedState {
     return {
-      size: this.renderer.size.save(),
+      settings: { ...this.sim },
+      sampler: {
+        instrument: this.sampler.instrument,
+        root: this.sampler.getRootNote(),
+        scaleType: this.sampler.getScaleType(),
+      },
+      size: this.renderer.size.serialise(),
       droppers: this.droppers.map((d) => ({ pos: d.pos, timeout: d.timeout })),
       lines: structuredClone(this.lines),
     };
   }
 
   load(from: SerialisedState) {
-    this.lines = from.lines.map((l) => CompletedLine.load(l));
+    this.lines = from.lines.map((l) => CompletedLine.deserialise(l));
     this.droppers = from.droppers.map((d) => ({
-      pos: Vec.load(d.pos),
+      pos: Vec.deserialise(d.pos),
       timeout: d.timeout,
     }));
+    this.sim = { ...from.settings };
+    this.sampler.setRootNote(from.sampler.root);
+    this.sampler.setScaleType(from.sampler.scaleType);
+    this.sampler.instrument = from.sampler.instrument;
   }
 
   /**

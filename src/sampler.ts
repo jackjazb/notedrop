@@ -27,36 +27,50 @@ export const Scales = {
   pentatonic_major: [0, 2, 4, 7, 9],
   pentatonic_minor: [0, 3, 5, 7, 10],
 } as const;
+
+/**
+ * Returns a sampler pointing at the passed folder in samples/
+ */
+function buildSampler(instrument: Instrument) {
+  const limiter = new Tone.Limiter(-40);
+  const mono = new Tone.Mono();
+
+  return new Tone.Sampler({
+    urls: {
+      C2: "c2.mp3",
+      C3: "c3.mp3",
+      C4: "c4.mp3",
+      C5: "c5.mp3",
+    },
+    attack: 0.1,
+    baseUrl: `samples/${instrument}/`,
+    volume: -10,
+  })
+    .connect(limiter)
+    .connect(mono)
+    .toDestination();
+}
 export type ScaleType = keyof typeof Scales;
 
 export class NoteSampler {
-  private ready = false;
-  // TODO update sampler on change
-  private instrument: Instrument = "marimba";
-  private sampler: Tone.Sampler;
+  instrument: Instrument = "marimba";
 
+  // Scale data.
   private root: Note = "C";
   private scaleType: ScaleType = "major";
   private scale: string[] = [];
 
+  // ToneJS
+  private ready = false;
+  private samplers: Record<Instrument, Tone.Sampler>;
+
   constructor() {
     Tone.getContext().lookAhead = 0;
-    const limiter = new Tone.Limiter(-40);
-    const mono = new Tone.Mono();
-    this.sampler = new Tone.Sampler({
-      urls: {
-        C2: "c2.wav",
-        C3: "c3.wav",
-        C4: "c4.wav",
-        C5: "c5.wav",
-      },
-      // release: 0.2,
-      baseUrl: `samples/${this.instrument}/`,
-      volume: -20,
-    })
-      .connect(limiter)
-      .connect(mono)
-      .toDestination();
+
+    this.samplers = {
+      guitar: buildSampler("guitar"),
+      marimba: buildSampler("marimba"),
+    };
     this.updateScale();
   }
   /**
@@ -64,9 +78,13 @@ export class NoteSampler {
    */
   async init() {
     if (!this.ready) {
-      await Tone.start();
-      await Tone.loaded();
-      this.ready = true;
+      try {
+        await Tone.start();
+        await Tone.loaded();
+        this.ready = true;
+      } catch {
+        return;
+      }
     }
   }
 
@@ -80,14 +98,24 @@ export class NoteSampler {
     const resolved = Math.max(min, Math.min(speed, max)) - min;
 
     const note = Math.floor(resolved / step);
-    this.sampler.triggerAttackRelease(this.scale[note], 1);
+    this.samplers[this.instrument].triggerAttackRelease(
+      this.scale[note],
+      1,
+      "+0.05"
+    );
   }
 
+  getRootNote() {
+    return this.root;
+  }
   setRootNote(root: Note) {
     this.root = root;
     this.updateScale();
   }
 
+  getScaleType() {
+    return this.scaleType;
+  }
   setScaleType(type: ScaleType) {
     this.scaleType = type;
     this.updateScale();

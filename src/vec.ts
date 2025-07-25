@@ -1,10 +1,10 @@
-import type { Serialisable, SerialisedVector } from "./model";
+import type { SerialisedVector } from "./model";
 
 export function vec(x: number, y: number): Vec {
   return new Vec(x, y);
 }
 
-export class Vec implements Serialisable {
+export class Vec {
   x: number;
   y: number;
 
@@ -75,14 +75,20 @@ export class Vec implements Serialisable {
     return this.x * v.x + this.y * v.y;
   }
 
-  save(): SerialisedVector {
+  /**
+   * Return anything needed to statically store the vector.
+   */
+  serialise(): SerialisedVector {
     return {
       x: this.x,
       y: this.y,
     };
   }
 
-  static load(from: SerialisedVector) {
+  /**
+   * Loads a statically stored vector.
+   */
+  static deserialise(from: SerialisedVector) {
     return new Vec(from.x, from.y);
   }
 }

@@ -1,4 +1,4 @@
-import type { Serialisable, SerialisedLine } from "./model";
+import type { SerialisedLine } from "./model";
 import { Vec, vec } from "./vec";
 
 export type Line = {
@@ -13,7 +13,7 @@ export function line(from: Vec, to: Vec) {
 /**
  * A line of the form y = mx + c
  */
-export class CompletedLine implements Serialisable {
+export class CompletedLine {
   from: Vec;
   to: Vec;
   m: number;
@@ -48,17 +48,23 @@ export class CompletedLine implements Serialisable {
     return w.minus(u);
   }
 
-  save(): SerialisedLine {
+  /**
+   * Return anything needed to statically store the line.
+   */
+  serialize(): SerialisedLine {
     return {
-      from: this.from.save(),
-      to: this.to.save(),
+      from: this.from.serialise(),
+      to: this.to.serialise(),
     };
   }
 
-  static load(line: SerialisedLine) {
+  /**
+   * Create a new line from a statically store done.
+   */
+  static deserialise(line: SerialisedLine) {
     return new CompletedLine({
-      from: Vec.load(line.from),
-      to: Vec.load(line.to),
+      from: Vec.deserialise(line.from),
+      to: Vec.deserialise(line.to),
     });
   }
 }

@@ -1,3 +1,4 @@
+import type { Instrument, Note, ScaleType } from "./sampler";
 import type { Vec } from "./vec";
 
 export type Dropper = {
@@ -11,7 +12,7 @@ export type Ball = {
   acc: Vec;
 };
 
-export type Circle = { centre: Vec; radius: number; stroke?: boolean; };
+export type Circle = { centre: Vec; radius: number; stroke?: boolean };
 
 export type SimulationParams = {
   /**
@@ -50,10 +51,6 @@ export function isTouchEvent(e: object): e is TouchEvent {
   return "touches" in e && "changedTouches" in e;
 }
 
-export type Serialisable = {
-  save: () => object;
-};
-
 export type SerialisedVector = {
   x: number;
   y: number;
@@ -64,7 +61,14 @@ export type SerialisedLine = {
   to: SerialisedVector;
 };
 
+export type SerialisedSampler = {
+  root: Note;
+  scaleType: ScaleType;
+  instrument: Instrument;
+};
 export type SerialisedState = {
+  settings: SimulationParams;
+  sampler: SerialisedSampler;
   size: SerialisedVector;
   lines: SerialisedLine[];
   droppers: {
