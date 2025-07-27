@@ -1,20 +1,55 @@
-import { CompletedLine, type Line } from "./line";
+import { CompletedLine, type Line, type SerialisedLine } from "./line";
 import {
   type Ball,
   type Dropper,
-  type SerialisedState,
   type SimulationParams,
   type Tool,
 } from "./model";
 import { Renderer } from "./renderer";
-import { NoteSampler } from "./sampler";
-import { Vec, vec } from "./vec";
+import {
+  NoteSampler,
+  type Instrument,
+  type Note,
+  type ScaleType,
+} from "./sampler";
+import { Vec, vec, type SerialisedVector } from "./vec";
 
+/**
+ * Every parameter in here needs to update the state's undo stack on change.
+ * This needs to be light as a result.
+ */
+export type UndoPoint = {
+  lines: SerialisedLine[];
+  droppers: {
+    pos: SerialisedVector;
+    // This is stored to retain note timings.
+    timeout: number;
+  }[];
+};
+
+/**
+ * Data saved to the URL on export.
+ * The full export should store sampler params too.
+ */
+export type SerialisedState = UndoPoint & {
+  sim: SimulationParams;
+  root: Note;
+  scaleType: ScaleType;
+  instrument: Instrument;
+  size: SerialisedVector;
+};
+
+/**
+ * The default sim params for a new board.
+ */
 export const DefaultSimulationSettings: SimulationParams = {
   gravity: 1.5,
   dropperTimeout: 800,
 };
 
+/**
+ * Used to get/set state in the URL.
+ */
 const StateKey = "state";
 
 export class State {
@@ -36,7 +71,7 @@ export class State {
   droppers: Dropper[] = [];
   balls: Ball[] = [];
 
-  undoStack: SerialisedState[] = [];
+  undoStack: UndoPoint[] = [];
   shouldUndo = false;
 
   constructor() {
@@ -45,6 +80,9 @@ export class State {
     this.clear();
   }
 
+  /**
+   * Resets the board state.
+   */
   clear() {
     this.lines = [];
     this.droppers = [];
@@ -126,11 +164,7 @@ export class State {
     // We don't want to undo mid frame, so this defers it until the simulation has advanced.
     if (this.shouldUndo) {
       this.shouldUndo = false;
-      const prev = this.undoStack.pop();
-      if (!prev) {
-        return;
-      }
-      this.load(prev);
+      this.popUndo();
     }
   }
 
@@ -171,44 +205,19 @@ export class State {
     if (!this.currentLine) {
       return;
     }
-    this.undoStack.push(this.save());
 
     this.currentLine.to = this.currentLine.to.clamp(this.renderer.size);
 
     const newLine = new CompletedLine(this.currentLine);
     this.lines.push(newLine);
     this.currentLine = undefined;
+
+    this.pushUndo();
   }
 
   addDropper(pos: Vec) {
-    this.undoStack.push(this.save());
     this.droppers.push({ pos, timeout: 0 });
-  }
-
-  save(): SerialisedState {
-    return {
-      settings: { ...this.sim },
-      sampler: {
-        instrument: this.sampler.instrument,
-        root: this.sampler.getRootNote(),
-        scaleType: this.sampler.getScaleType(),
-      },
-      size: this.renderer.size.serialise(),
-      droppers: this.droppers.map((d) => ({ pos: d.pos, timeout: d.timeout })),
-      lines: structuredClone(this.lines),
-    };
-  }
-
-  load(from: SerialisedState) {
-    this.lines = from.lines.map((l) => CompletedLine.deserialise(l));
-    this.droppers = from.droppers.map((d) => ({
-      pos: Vec.deserialise(d.pos),
-      timeout: d.timeout,
-    }));
-    this.sim = { ...from.settings };
-    this.sampler.setRootNote(from.sampler.root);
-    this.sampler.setScaleType(from.sampler.scaleType);
-    this.sampler.instrument = from.sampler.instrument;
+    this.pushUndo();
   }
 
   /**
@@ -218,11 +227,58 @@ export class State {
     this.shouldUndo = true;
   }
 
+  private getUndoPoint(): UndoPoint {
+    return {
+      droppers: this.droppers.map((d) => ({ pos: d.pos, timeout: d.timeout })),
+      lines: this.lines.map((l) => l.serialise()),
+    };
+  }
+
+  private pushUndo() {
+    const snap = this.getUndoPoint();
+    this.undoStack.push(snap);
+  }
+
+  private popUndo() {
+    const prev = this.undoStack.pop();
+    if (!prev) {
+      return;
+    }
+    this.lines = prev.lines.map((l) => CompletedLine.deserialise(l));
+    this.droppers = prev.droppers.map((d) => ({
+      pos: Vec.deserialise(d.pos),
+      timeout: d.timeout,
+    }));
+  }
+
+  private serialise(): SerialisedState {
+    return {
+      ...this.getUndoPoint(),
+      sim: { ...this.sim },
+      instrument: this.sampler.instrument,
+      root: this.sampler.getRootNote(),
+      scaleType: this.sampler.getScaleType(),
+      size: this.renderer.size.serialise(),
+    };
+  }
+
+  private deserialise(from: SerialisedState) {
+    this.lines = from.lines.map((l) => CompletedLine.deserialise(l));
+    this.droppers = from.droppers.map((d) => ({
+      pos: Vec.deserialise(d.pos),
+      timeout: d.timeout,
+    }));
+    this.sim = { ...from.sim };
+    this.sampler.setRootNote(from.root);
+    this.sampler.setScaleType(from.scaleType);
+    this.sampler.instrument = from.instrument;
+  }
+
   /**
    * Saves the current state to the URL for sharing.
    */
   saveToLocal() {
-    const serialised = this.save();
+    const serialised = this.serialise();
     const encoded = btoa(JSON.stringify(serialised));
     const url = new URL(window.location.href);
     url.searchParams.set(StateKey, encoded);
@@ -242,6 +298,7 @@ export class State {
     try {
       const decoded = atob(encoded);
       const parsed = JSON.parse(decoded) as SerialisedState;
+      // Center the board if the URL was sent from a different screen size.
       const xOffset = (this.renderer.size.x - parsed.size.x) / 2;
       for (const d of parsed.droppers) {
         d.pos.x += xOffset;
@@ -251,7 +308,7 @@ export class State {
         l.to.x += xOffset;
       }
 
-      this.load(parsed);
+      this.deserialise(parsed);
     } catch {
       // This could easily happen and we don't especially care - no handling.
       return;

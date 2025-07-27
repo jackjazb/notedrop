@@ -1,5 +1,12 @@
 import * as Tone from "tone";
 
+// TODO IoC this, make calls functional and store note state in State.
+export type SerialisedSampler = {
+  root: Note;
+  scaleType: ScaleType;
+  instrument: Instrument;
+};
+
 export const Instruments = ["marimba", "guitar"] as const;
 export type Instrument = (typeof Instruments)[number];
 

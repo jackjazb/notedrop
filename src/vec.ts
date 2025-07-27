@@ -1,14 +1,17 @@
-import type { SerialisedVector } from "./model";
-
 export function vec(x: number, y: number): Vec {
   return new Vec(x, y);
 }
 
-export class Vec {
+export type SerialisedVector = {
+  x: number;
+  y: number;
+};
+
+export class Vec implements SerialisedVector {
   x: number;
   y: number;
 
-  constructor(x: number, y: number) {
+  constructor(x = 0, y = 0) {
     this.x = x;
     this.y = y;
   }
@@ -61,10 +64,13 @@ export class Vec {
   }
 
   /**
-   * Returns the current vector to one with magnitude 1.
+   * Returns the current vector as a vector with magnitude 1.
    */
   normalised(): Vec {
     const mag = this.mag();
+    if (mag === 0) {
+      return this.clone();
+    }
     return new Vec(this.x / mag, this.y / mag);
   }
 

@@ -1,9 +1,14 @@
 import type { Line } from "./line";
-import type { Circle } from "./model";
 import { vec, type Vec } from "./vec";
 
 export const BG = "black";
 export const FG = "white";
+
+type Circle = {
+  centre: Vec;
+  radius: number;
+  stroke?: boolean;
+};
 
 export class Renderer {
   private ctx: CanvasRenderingContext2D;

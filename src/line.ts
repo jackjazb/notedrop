@@ -1,5 +1,9 @@
-import type { SerialisedLine } from "./model";
-import { Vec, vec } from "./vec";
+import { Vec, vec, type SerialisedVector } from "./vec";
+
+export type SerialisedLine = {
+  from: SerialisedVector;
+  to: SerialisedVector;
+};
 
 export type Line = {
   from: Vec;
@@ -51,7 +55,7 @@ export class CompletedLine {
   /**
    * Return anything needed to statically store the line.
    */
-  serialize(): SerialisedLine {
+  serialise(): SerialisedLine {
     return {
       from: this.from.serialise(),
       to: this.to.serialise(),
