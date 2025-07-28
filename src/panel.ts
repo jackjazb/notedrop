@@ -1,5 +1,4 @@
 import m, { trust } from "mithril";
-import type { SimulationParams, Tool } from "./model";
 import {
   Instruments,
   Notes,
@@ -8,7 +7,8 @@ import {
   type Note,
   type ScaleType,
 } from "./sampler";
-import { DefaultSimulationSettings, type State } from "./state";
+import type { Tool } from "./state";
+import { type CoreState, type State } from "./state";
 import { isTouch, setClipboard } from "./utils";
 
 // Raw asset imports
@@ -82,16 +82,16 @@ const ScalePicker: m.ClosureComponent<{ state: State }> = () => {
         m(
           "select",
           {
-            onchange: (e: Event) =>
-              state.sampler.setRootNote(
-                (e.target as HTMLSelectElement).value as Note
-              ),
+            onchange: (e: Event) => {
+              const t = e.target as HTMLSelectElement;
+              state.state.root = t.value as Note;
+            },
           },
           Notes.map((n) =>
             m(
               "option",
               {
-                selected: n === state.sampler.getRootNote(),
+                selected: n === state.state.root,
               },
               n
             )
@@ -100,16 +100,16 @@ const ScalePicker: m.ClosureComponent<{ state: State }> = () => {
         m(
           "select",
           {
-            onchange: (e: Event) =>
-              state.sampler.setScaleType(
-                (e.target as HTMLSelectElement).value as ScaleType
-              ),
+            onchange: (e: Event) => {
+              const t = e.target as HTMLSelectElement;
+              state.state.scaleType = t.value as ScaleType;
+            },
           },
           Object.keys(Scales).map((n) =>
             m(
               "option",
               {
-                selected: n === state.sampler.getScaleType(),
+                selected: n === state.state.scaleType,
                 value: n,
               },
               n.replaceAll("_", " ")
@@ -126,7 +126,7 @@ const ScalePicker: m.ClosureComponent<{ state: State }> = () => {
  */
 const SimSettingSlider: m.Component<{
   state: State;
-  setting: keyof SimulationParams;
+  setting: keyof Pick<CoreState, "gravity" | "dropperTimeout">;
   label: string;
   min: number;
   max: number;
@@ -141,9 +141,9 @@ const SimSettingSlider: m.Component<{
         min,
         step,
         max,
-        value: state.sim[setting],
+        value: state.state[setting],
         oninput: (e: Event) => {
-          state.sim[setting] = parseFloat(
+          state.state[setting] = parseFloat(
             (e.currentTarget as HTMLInputElement).value
           );
         },
@@ -176,7 +176,7 @@ const SettingsModal: m.ClosureComponent<{ state: State }> = () => {
               "button",
               {
                 class: "btn icon ml-auto",
-                onclick: () => (state.sim = { ...DefaultSimulationSettings }),
+                onclick: () => state.clearSettings(),
               },
               trust(resetIcon)
             )
@@ -206,13 +206,13 @@ const SettingsModal: m.ClosureComponent<{ state: State }> = () => {
               "select",
               {
                 onchange: (e: Event) =>
-                  (state.sampler.instrument = (e.target as HTMLSelectElement)
+                  (state.state.instrument = (e.target as HTMLSelectElement)
                     .value as Instrument),
               },
               Instruments.map((inst) =>
                 m(
                   "option",
-                  { value: inst, selected: inst === state.sampler.instrument },
+                  { value: inst, selected: inst === state.state.instrument },
                   inst.replaceAll("_", " ")
                 )
               )
@@ -228,7 +228,7 @@ const SettingsModal: m.ClosureComponent<{ state: State }> = () => {
               {
                 class: "btn  ",
                 onclick: async () => {
-                  state.clear();
+                  state.clearBoard();
                   window.history.pushState(null, "", "/");
                 },
               },
@@ -239,7 +239,7 @@ const SettingsModal: m.ClosureComponent<{ state: State }> = () => {
               {
                 class: "btn ",
                 onclick: async () => {
-                  state.saveToLocal();
+                  state.saveToUrl();
                   await setClipboard(window.location.href);
                   showCopyConfirm = true;
                   console.log(showCopyConfirm);
@@ -326,6 +326,7 @@ const Panel: m.Component<{ state: State }> = {
     ];
   },
 };
+
 /**
  * Adds necessary button event listeners.
  */

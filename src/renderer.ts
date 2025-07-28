@@ -1,22 +1,25 @@
-import type { Line } from "./line";
 import { vec, type Vec } from "./vec";
 
 export const BG = "black";
 export const FG = "white";
 
-type Circle = {
+export type Circle = {
   centre: Vec;
   radius: number;
   stroke?: boolean;
 };
 
+export type Line = {
+  from: Vec;
+  to: Vec;
+};
+
+/**
+ * Provides necessary canvas rendering primitives.
+ */
 export class Renderer {
   private ctx: CanvasRenderingContext2D;
   public canvas: HTMLCanvasElement;
-
-  get size(): Vec {
-    return vec(this.canvas.width, this.canvas.height);
-  }
 
   constructor() {
     const canvas = document.createElement("canvas");
@@ -31,6 +34,10 @@ export class Renderer {
     this.ctx = ctx;
     this.canvas.style.backgroundColor = BG;
     this.resize(window.innerWidth, window.innerHeight);
+  }
+
+  size(): Vec {
+    return vec(this.canvas.width, this.canvas.height);
   }
 
   resize(width: number, height: number) {

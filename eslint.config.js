@@ -1,4 +1,4 @@
-import eslint from '@eslint/js';
+import eslint from "@eslint/js";
 import { defineConfig, globalIgnores } from "eslint/config";
 import ts from "typescript-eslint";
 
@@ -8,8 +8,16 @@ export default defineConfig([
   ts.configs.stylistic,
   {
     rules: {
-      '@typescript-eslint/consistent-type-definitions': ['error', 'type'],
+      "@typescript-eslint/consistent-type-definitions": ["error", "type"],
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+          varsIgnorePattern: "^_",
+          caughtErrorsIgnorePattern: "^_",
+        },
+      ],
     },
   },
-  globalIgnores(["dist/"])
+  globalIgnores(["dist/"]),
 ]);

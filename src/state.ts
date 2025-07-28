@@ -1,11 +1,5 @@
-import { CompletedLine, type Line, type SerialisedLine } from "./line";
-import {
-  type Ball,
-  type Dropper,
-  type SimulationParams,
-  type Tool,
-} from "./model";
-import { Renderer } from "./renderer";
+import { StaticLine, type SerialisedLine } from "./line";
+import { Renderer, type Line } from "./renderer";
 import {
   NoteSampler,
   type Instrument,
@@ -14,37 +8,76 @@ import {
 } from "./sampler";
 import { Vec, vec, type SerialisedVector } from "./vec";
 
+type Dropper = {
+  pos: Vec;
+  timeout: number;
+};
+
+type SerialisedDropper = {
+  pos: SerialisedVector;
+  // This is stored to retain note timings.
+  timeout: number;
+};
+
+type Ball = {
+  pos: Vec;
+  vel: Vec;
+  acc: Vec;
+};
+
+export type Tool = "line" | "dropper";
+
 /**
- * Every parameter in here needs to update the state's undo stack on change.
- * This needs to be light as a result.
+ * All state that represents a unique setup.
  */
-export type UndoPoint = {
-  lines: SerialisedLine[];
-  droppers: {
-    pos: SerialisedVector;
-    // This is stored to retain note timings.
-    timeout: number;
-  }[];
+export type CoreState = {
+  /**
+   * px/s^2
+   */
+  gravity: number;
+  /**
+   * The rate at which droppers drop
+   */
+  dropperTimeout: number;
+  instrument: Instrument;
+  root: Note;
+  scaleType: ScaleType;
+  lines: StaticLine[];
+  droppers: Dropper[];
 };
 
 /**
- * Data saved to the URL on export.
- * The full export should store sampler params too.
+ * Same as CoreState, but contains no classes, allowing it to be saved/loaded.
  */
-export type SerialisedState = UndoPoint & {
-  sim: SimulationParams;
+export type SerialisedState = {
+  gravity: number;
+  dropperTimeout: number;
   root: Note;
   scaleType: ScaleType;
   instrument: Instrument;
   size: SerialisedVector;
+  lines: SerialisedLine[];
+  droppers: SerialisedDropper[];
 };
 
 /**
- * The default sim params for a new board.
+ * Subset of SerialisedState for the undo stack.
+ * Every parameter in here needs to update the stack on change.
  */
-export const DefaultSimulationSettings: SimulationParams = {
+type UndoPoint = Pick<SerialisedState, "lines" | "droppers">;
+
+/**
+ * The default settings for a new board.
+ */
+const DefaultSettings: Pick<
+  CoreState,
+  "gravity" | "dropperTimeout" | "instrument" | "root" | "scaleType"
+> = {
   gravity: 1.5,
   dropperTimeout: 800,
+  instrument: "marimba",
+  root: "C",
+  scaleType: "major",
 };
 
 /**
@@ -52,45 +85,67 @@ export const DefaultSimulationSettings: SimulationParams = {
  */
 const StateKey = "state";
 
+/**
+ * Manages all state for the simulation.
+ */
 export class State {
+  // All the parameters and data that form a unique board.
+  state: CoreState = {
+    ...DefaultSettings,
+    lines: [],
+    droppers: [],
+  };
+
   // Video and sound.
   renderer: Renderer;
   sampler: NoteSampler;
 
-  /**
-   * Settings for gravity etc.
-   */
-  sim: SimulationParams = { ...DefaultSimulationSettings };
+  // Currently active balls
+  balls: Ball[] = [];
+
+  // Fixed position center dropper. Always added on clear.
+  initialDropper: Dropper;
 
   // Interaction.
   currentLine?: Line;
   tool: Tool = "line";
 
-  // Core simulation state.
-  lines: CompletedLine[] = [];
-  droppers: Dropper[] = [];
-  balls: Ball[] = [];
-
-  undoStack: UndoPoint[] = [];
-  shouldUndo = false;
+  private undoStack: UndoPoint[] = [];
+  private shouldUndo = false;
 
   constructor() {
     this.renderer = new Renderer();
     this.sampler = new NoteSampler();
-    this.clear();
+    this.initialDropper = {
+      pos: this.renderer
+        .size()
+        .divide(2)
+        .minus(vec(0, this.renderer.size().y / 4)),
+      timeout: 0,
+    };
+    this.clearBoard();
   }
 
   /**
-   * Resets the board state.
+   * Clears the board state, but not settings.
    */
-  clear() {
-    this.lines = [];
-    this.droppers = [];
+  clearBoard() {
     this.balls = [];
-    this.droppers.push({
-      pos: this.renderer.size.divide(2).minus(vec(0, this.renderer.size.y / 4)),
-      timeout: 0,
-    });
+    this.state = {
+      ...this.state,
+      lines: [],
+      droppers: [this.initialDropper],
+    };
+  }
+
+  /**
+   * Resets to default settings without affecting the board
+   */
+  clearSettings() {
+    this.state = {
+      ...this.state,
+      ...DefaultSettings,
+    };
   }
 
   /**
@@ -100,12 +155,13 @@ export class State {
    */
   update(timeStepMs: number) {
     // Add balls to timed out droppers
-    for (const d of this.droppers) {
+    for (const d of this.state.droppers) {
       d.timeout -= timeStepMs;
       if (d.timeout > 0) {
         continue;
       }
-      d.timeout = this.sim.dropperTimeout;
+
+      d.timeout = this.state.dropperTimeout;
       this.balls.push({
         pos: d.pos.clone(),
         vel: vec(0, 0),
@@ -114,7 +170,7 @@ export class State {
     }
 
     // Convert px/s to px/ms
-    const gravity = this.sim.gravity / 1000;
+    const gravity = this.state.gravity / 1000;
 
     for (const [i, b] of this.balls.entries()) {
       // Acceleration = gravity.
@@ -131,7 +187,7 @@ export class State {
        If the dot product of (from -> ball) and the line's normal is 0, the lines are perpendicular.
        This means on each side of the line this product has a different sign,
       */
-      for (const l of this.lines) {
+      for (const l of this.state.lines) {
         /*
          Is the ball in line with the segment of the line on show?
          Get vectors from each end and see if their alignment mismatches.
@@ -142,19 +198,24 @@ export class State {
         const toDot = b.pos.minus(l.to).dot(l.to.minus(l.from));
         const withinLineSegment = Math.sign(fromDot) !== Math.sign(toDot);
 
-        const thisDot = b.pos.minus(l.from).dot(l.normal);
-        const nextDot = nextPos.minus(l.from).dot(l.normal);
+        const thisDot = b.pos.minus(l.from).dot(l.normal());
+        const nextDot = nextPos.minus(l.from).dot(l.normal());
         const crossesLine = Math.sign(thisDot) !== Math.sign(nextDot);
 
         if (withinLineSegment && crossesLine) {
           b.vel = l.bounce(b.vel);
           nextPos = b.pos.add(b.vel.times(timeStepMs));
-          this.sampler.play(b.vel.mag());
+          this.sampler.play(
+            b.vel.mag(),
+            this.state.instrument,
+            this.state.root,
+            this.state.scaleType
+          );
         }
       }
 
       // Remove anything outside the canvas post bouncing.
-      if (nextPos.isOutside(vec(0, 0), this.renderer.size)) {
+      if (nextPos.isOutside(vec(0, 0), this.renderer.size())) {
         this.balls.splice(i, 1);
         continue;
       }
@@ -163,8 +224,8 @@ export class State {
 
     // We don't want to undo mid frame, so this defers it until the simulation has advanced.
     if (this.shouldUndo) {
-      this.shouldUndo = false;
       this.popUndo();
+      this.shouldUndo = false;
     }
   }
 
@@ -178,11 +239,11 @@ export class State {
       this.renderer.drawLine(this.currentLine);
     }
 
-    for (const l of this.lines) {
+    for (const l of this.state.lines) {
       this.renderer.drawLine(l);
     }
 
-    for (const d of this.droppers) {
+    for (const d of this.state.droppers) {
       this.renderer.drawCircle({
         centre: d.pos,
         radius: 4,
@@ -205,19 +266,18 @@ export class State {
     if (!this.currentLine) {
       return;
     }
-
-    this.currentLine.to = this.currentLine.to.clamp(this.renderer.size);
-
-    const newLine = new CompletedLine(this.currentLine);
-    this.lines.push(newLine);
-    this.currentLine = undefined;
-
     this.pushUndo();
+
+    this.currentLine.to = this.currentLine.to.clamp(this.renderer.size());
+
+    const newLine = new StaticLine(this.currentLine);
+    this.state.lines.push(newLine);
+    this.currentLine = undefined;
   }
 
   addDropper(pos: Vec) {
-    this.droppers.push({ pos, timeout: 0 });
     this.pushUndo();
+    this.state.droppers.push({ pos, timeout: 0 });
   }
 
   /**
@@ -227,16 +287,12 @@ export class State {
     this.shouldUndo = true;
   }
 
-  private getUndoPoint(): UndoPoint {
-    return {
-      droppers: this.droppers.map((d) => ({ pos: d.pos, timeout: d.timeout })),
-      lines: this.lines.map((l) => l.serialise()),
-    };
-  }
-
   private pushUndo() {
-    const snap = this.getUndoPoint();
-    this.undoStack.push(snap);
+    const serialised = this.serialise();
+    this.undoStack.push({
+      droppers: serialised.droppers,
+      lines: serialised.lines,
+    });
   }
 
   private popUndo() {
@@ -244,40 +300,44 @@ export class State {
     if (!prev) {
       return;
     }
-    this.lines = prev.lines.map((l) => CompletedLine.deserialise(l));
-    this.droppers = prev.droppers.map((d) => ({
+    this.state.lines = prev.lines.map((l) => StaticLine.deserialise(l));
+    this.state.droppers = prev.droppers.map((d) => ({
       pos: Vec.deserialise(d.pos),
       timeout: d.timeout,
     }));
   }
 
-  private serialise(): SerialisedState {
+  serialise(): SerialisedState {
+    const { droppers, lines, ...rest } = this.state;
+
     return {
-      ...this.getUndoPoint(),
-      sim: { ...this.sim },
-      instrument: this.sampler.instrument,
-      root: this.sampler.getRootNote(),
-      scaleType: this.sampler.getScaleType(),
-      size: this.renderer.size.serialise(),
+      ...rest,
+      droppers: droppers.map((dropper) => ({
+        pos: dropper.pos.serialise(),
+        timeout: dropper.timeout,
+      })),
+      lines: lines.map((line) => line.serialise()),
+      size: this.renderer.size().serialise(),
     };
   }
 
-  private deserialise(from: SerialisedState) {
-    this.lines = from.lines.map((l) => CompletedLine.deserialise(l));
-    this.droppers = from.droppers.map((d) => ({
-      pos: Vec.deserialise(d.pos),
-      timeout: d.timeout,
-    }));
-    this.sim = { ...from.sim };
-    this.sampler.setRootNote(from.root);
-    this.sampler.setScaleType(from.scaleType);
-    this.sampler.instrument = from.instrument;
+  deserialise(from: SerialisedState) {
+    const { droppers, lines, size: _size, ...rest } = from;
+
+    this.state = {
+      ...rest,
+      lines: lines.map((line) => StaticLine.deserialise(line)),
+      droppers: droppers.map((dropper) => ({
+        pos: Vec.deserialise(dropper.pos),
+        timeout: dropper.timeout,
+      })),
+    };
   }
 
   /**
    * Saves the current state to the URL for sharing.
    */
-  saveToLocal() {
+  saveToUrl() {
     const serialised = this.serialise();
     const encoded = btoa(JSON.stringify(serialised));
     const url = new URL(window.location.href);
@@ -299,7 +359,7 @@ export class State {
       const decoded = atob(encoded);
       const parsed = JSON.parse(decoded) as SerialisedState;
       // Center the board if the URL was sent from a different screen size.
-      const xOffset = (this.renderer.size.x - parsed.size.x) / 2;
+      const xOffset = (this.renderer.size().x - parsed.size.x) / 2;
       for (const d of parsed.droppers) {
         d.pos.x += xOffset;
       }

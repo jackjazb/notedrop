@@ -1,10 +1,3 @@
-import { Vec, vec } from "./vec";
-
-export function canvasMousePos(client: Vec, canvas: HTMLCanvasElement): Vec {
-  const { x, y } = canvas.getBoundingClientRect();
-  return vec(client.x - x, client.y - y);
-}
-
 export function radToDeg(rad: number): number {
   return 180 * (rad / Math.PI);
 }

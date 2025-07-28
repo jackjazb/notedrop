@@ -1,12 +1,6 @@
 import * as Tone from "tone";
 
 // TODO IoC this, make calls functional and store note state in State.
-export type SerialisedSampler = {
-  root: Note;
-  scaleType: ScaleType;
-  instrument: Instrument;
-};
-
 export const Instruments = ["marimba", "guitar"] as const;
 export type Instrument = (typeof Instruments)[number];
 
@@ -38,7 +32,7 @@ export const Scales = {
 /**
  * Returns a sampler pointing at the passed folder in samples/
  */
-function buildSampler(instrument: Instrument) {
+function buildSampler(instrument: Instrument, output: Tone.ToneAudioNode) {
   const limiter = new Tone.Limiter(-40);
   const mono = new Tone.Mono();
 
@@ -55,30 +49,24 @@ function buildSampler(instrument: Instrument) {
   })
     .connect(limiter)
     .connect(mono)
-    .toDestination();
+    .connect(output);
 }
 export type ScaleType = keyof typeof Scales;
 
 export class NoteSampler {
-  instrument: Instrument = "marimba";
-
-  // Scale data.
-  private root: Note = "C";
-  private scaleType: ScaleType = "major";
-  private scale: string[] = [];
-
   // ToneJS
   private ready = false;
   private samplers: Record<Instrument, Tone.Sampler>;
-
+  private output = new Tone.Gain();
   constructor() {
     Tone.getContext().lookAhead = 0;
 
     this.samplers = {
-      guitar: buildSampler("guitar"),
-      marimba: buildSampler("marimba"),
+      guitar: buildSampler("guitar", this.output),
+      marimba: buildSampler("marimba", this.output),
     };
-    this.updateScale();
+
+    this.output.toDestination();
   }
   /**
    * Initialise audio if it isn't already.
@@ -95,46 +83,40 @@ export class NoteSampler {
     }
   }
 
-  play(speed: number) {
+  play(
+    speed: number,
+    instrument: Instrument,
+    root: Note,
+    scaleType: ScaleType
+  ) {
+    const scale = this.getScale(root, scaleType);
     // Doing this as a fraction of G seems to work well.
     const min = 0;
     const max = 2.0;
-    const step = (max - min) / (this.scale.length - 1);
+    const step = (max - min) / (scale.length - 1);
 
     // Clamp between min and max speed, then normalise 0 to max.
     const resolved = Math.max(min, Math.min(speed, max)) - min;
 
     const note = Math.floor(resolved / step);
-    this.samplers[this.instrument].triggerAttackRelease(
-      this.scale[note],
-      1,
-      "+0.05"
-    );
+    this.samplers[instrument].triggerAttackRelease(scale[note], 1, "+0.05");
   }
 
-  getRootNote() {
-    return this.root;
-  }
-  setRootNote(root: Note) {
-    this.root = root;
-    this.updateScale();
-  }
-
-  getScaleType() {
-    return this.scaleType;
-  }
-  setScaleType(type: ScaleType) {
-    this.scaleType = type;
-    this.updateScale();
+  mute(toggle: boolean) {
+    if (toggle) {
+      this.output.gain.rampTo(0);
+    } else {
+      this.output.gain.rampTo(1);
+    }
   }
 
-  private updateScale() {
-    const rootIndex = Notes.indexOf(this.root);
+  private getScale(root: Note, type: ScaleType): string[] {
+    const rootIndex = Notes.indexOf(root);
     if (rootIndex === -1) {
-      throw new Error(`invalid root: ${this.root}`);
+      throw new Error(`invalid root: ${root}`);
     }
 
-    const offsets = Scales[this.scaleType];
+    const offsets = Scales[type];
     const scale: string[] = [];
     for (const offset of offsets) {
       let i = rootIndex + offset;
@@ -143,6 +125,6 @@ export class NoteSampler {
       }
       scale.push(Notes[i]);
     }
-    this.scale = Octaves.flatMap((o) => scale.map((note) => `${note}${o}`));
+    return Octaves.flatMap((o) => scale.map((note) => `${note}${o}`));
   }
 }

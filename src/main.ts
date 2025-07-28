@@ -1,5 +1,4 @@
 import { line } from "./line";
-import { isTouchEvent, type TouchOrMouseHandler } from "./model";
 import { State } from "./state";
 import { type Vec } from "./vec";
 
@@ -78,6 +77,13 @@ function setUpEventListeners(state: State) {
   window.onresize = () => {
     state.renderer.resize(window.innerWidth, window.innerHeight);
   };
+
+  window.onblur = () => {
+    state.sampler.mute(true);
+  };
+  window.onfocus = () => {
+    state.sampler.mute(false);
+  };
 }
 
 let now = performance.now();
@@ -85,7 +91,7 @@ let delta = 0;
 let last = now;
 
 // Allowed ms per frame - see https://gafferongames.com/post/fix_your_timestep/
-const timeStep = 1000 / 240; //TODO at higher values (e.g. 3), bounces are missed?
+const timeStep = 1000 / 240;
 
 function loop(state: State) {
   now = performance.now();
@@ -112,3 +118,9 @@ setUpEventListeners(initialState);
 setUpControlPanel(initialState);
 
 loop(initialState);
+export type TouchOrMouseHandler = (
+  e: TouchEvent | MouseEvent
+) => Promise<void> | void;
+export function isTouchEvent(e: object): e is TouchEvent {
+  return "touches" in e && "changedTouches" in e;
+}
