@@ -130,6 +130,7 @@ export class State {
    * Clears the board state, but not settings.
    */
   clearBoard() {
+    this.pushUndo();
     this.balls = [];
     this.state = {
       ...this.state,
